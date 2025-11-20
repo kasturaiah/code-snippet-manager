@@ -1,32 +1,68 @@
-import React, { useState } from 'react';
+// frontend/src/components/SearchBar.js
+import React, { useEffect, useState } from 'react';
 
-const SearchBar = ({ onSearch, tags }) => {
-  const [search, setSearch] = useState('');
-  const [selectedTag, setSelectedTag] = useState('');
+export default function SearchBar({ onSelect }) {
+  const [tags, setTags] = useState([]);
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleSearch = () => {
-    onSearch(search, selectedTag);
-  };
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError(null);
+
+    fetch('/api/tags')
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Status ${res.status} ${text}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!mounted) return;
+        // defensive: ensure array
+        setTags(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error('Error fetching /api/tags', err);
+        if (mounted) {
+          setError('Failed to load tags');
+          setTags([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filtered = (Array.isArray(tags) ? tags : []).filter((t) =>
+    t.toLowerCase().includes(q.toLowerCase())
+  );
+
+  if (loading) return <div>Loading tags…</div>;
+  if (error) return <div>{error}</div>;
 
   return (
-    <div className="card" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+    <div>
       <input
-        type="text"
-        placeholder="Search snippets..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="form-input"
-        style={{ flex: 1 }}
+        placeholder="Search tags..."
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
       />
-      <select value={selectedTag} onChange={(e) => setSelectedTag(e.target.value)} className="form-input" style={{ width: '200px' }}>
-        <option value="">All Tags</option>
-        {tags.map(tag => (
-          <option key={tag.id} value={tag.name}>{tag.name}</option>
+      <ul>
+        {filtered.length === 0 && <li>No tags found</li>}
+        {filtered.map((tag, i) => (
+          <li key={i} onClick={() => onSelect && onSelect(tag)}>
+            {tag}
+          </li>
         ))}
-      </select>
-      <button onClick={handleSearch} className="btn btn-primary">Search</button>
+      </ul>
     </div>
   );
-};
-
-export default SearchBar;
+}

@@ -6,11 +6,18 @@ const snippetsRoutes = require('./routes/snippets');
 const tagsRoutes = require('./routes/tags');
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true,credentials: true }));
 app.use(express.json());
 
 app.use('/api/snippets', snippetsRoutes);
 app.use('/api/tags', tagsRoutes);
+
+try {
+  const tagsRouter = require('./routes/tags');
+  app.use('/api/tags', tagsRouter);
+} catch (err) {
+  console.warn('Could not mount /api/tags route (file may not exist):', err.message);
+}
 
 // Production serving - MUST BE AT THE END
 const frontendBuildPath = path.join(__dirname, '..', 'frontend', 'build');
